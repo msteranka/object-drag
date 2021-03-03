@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <sstream>
 #include <stdatomic.h>
+#include <signal.h>
 #include "objectdata.hpp"
 #include "backtrace.hpp"
 #include "objectmanager.hpp"
@@ -38,13 +39,35 @@ static AFUNPTR clockFun;
 
 namespace DefaultParams {
     static const std::string defaultIsVerbose = "0",
-        defaultTraceFile = "drag.out";
+        defaultTraceFile = "drag.out",
+        defaultEnableInstrumentation = "0";
 }
 
 namespace Params {
-    static BOOL isVerbose;
+    static BOOL isVerbose, enableInstrumentation;
     static std::ofstream traceFile;
 };
+
+VOID SignalHandler(THREADID tid, CONTEXT_CHANGE_REASON reason, const CONTEXT *from, const CONTEXT *to, INT32 info, VOID *v) {
+    std::cout << "SignalHandler received signal " << info << std::endl;
+    if (reason == CONTEXT_CHANGE_REASON_SIGNAL) {
+        if (info == SIGUSR1) {
+            Params::enableInstrumentation = true;
+        } else if (info == SIGUSR2) {
+            Params::enableInstrumentation = false;
+        }
+    }
+}
+
+BOOL EnableInstrumentation(THREADID tid, INT32 sig, CONTEXT *ctxt, BOOL hasHandler, const EXCEPTION_INFO *pExceptInfo, VOID *v) {
+    Params::enableInstrumentation = true;
+    return false; // Don't pass SIGUSR1 to application
+}
+
+BOOL DisableInstrumentation(THREADID tid, INT32 sig, CONTEXT *ctxt, BOOL hasHandler, const EXCEPTION_INFO *pExceptInfo, VOID *v) {
+    Params::enableInstrumentation = false;
+    return false; // Don't pass SIGUSR1 to application
+}
 
 VOID ThreadStart(THREADID threadId, CONTEXT *ctxt, INT32 flags, VOID* v) {
     MyTLS *tls = new MyTLS;
@@ -60,6 +83,9 @@ VOID ThreadFini(THREADID threadId, const CONTEXT *ctxt, INT32 code, VOID* v) {
 // Thus, we must insert a routine before malloc and cache these values
 //
 VOID MallocBefore(THREADID threadId, CONTEXT *ctxt, ADDRINT size) {
+    if (!Params::enableInstrumentation) {
+        return;
+    }
     MyTLS *tls = static_cast<MyTLS*>(PIN_GetThreadData(tls_key, threadId));
     tls->_cachedSize = size;
     tls->_cachedBacktrace.SetTrace(ctxt);
@@ -68,7 +94,7 @@ VOID MallocBefore(THREADID threadId, CONTEXT *ctxt, ADDRINT size) {
 VOID MallocAfter(THREADID threadId, ADDRINT retVal) {
     // Check for success since we don't want to track null pointers
     //
-    if ((VOID *) retVal == nullptr) { 
+    if (!Params::enableInstrumentation || (VOID *) retVal == nullptr) { 
         return; 
     }
 
@@ -77,10 +103,15 @@ VOID MallocAfter(THREADID threadId, ADDRINT retVal) {
 }
 
 VOID FreeBefore(THREADID threadId, CONTEXT *ctxt, ADDRINT ptr) {
+    if (!Params::enableInstrumentation) {
+        return;
+    }
+
     Backtrace freeBacktrace;
     clock_t t = 0;
 
     freeBacktrace.SetTrace(ctxt);
+    // TODO: Get this to work
     // if (clockFun) {
     //     PIN_CallApplicationFunction(ctxt, threadId, CALLINGSTD_DEFAULT, // Call clock()
     //                                 clockFun, nullptr, 
@@ -91,6 +122,10 @@ VOID FreeBefore(THREADID threadId, CONTEXT *ctxt, ADDRINT ptr) {
 }
 
 VOID MemAccess(THREADID threadId, ADDRINT addrAccessed, UINT32 accessSize, const CONTEXT *ctxt) {
+    if (!Params::enableInstrumentation) {
+        return;
+    }
+
     clock_t t = 0;
     // TODO: PIN_CallApplicationFunction has a high overhead -- Better solution?
     // if (clockFun) {
@@ -190,6 +225,9 @@ int main(int argc, char *argv[]) {
     KNOB<std::string> knobTraceFile(KNOB_MODE_WRITEONCE, "pintool", "o", 
                             DefaultParams::defaultTraceFile,
                             "Name of output file");
+    KNOB<UINT32> knobEnableInstrumentation(KNOB_MODE_WRITEONCE, "pintool", "i",
+                            DefaultParams::defaultEnableInstrumentation,
+                            "Whether instrumentation should begin enabled");
 
     PIN_InitSymbols();
     if (PIN_Init(argc, argv))  {
@@ -197,6 +235,7 @@ int main(int argc, char *argv[]) {
     }
 
     Params::isVerbose = knobIsVerbose.Value();
+    Params::enableInstrumentation = knobEnableInstrumentation.Value();
     Params::traceFile.open(knobTraceFile.Value().c_str());
     Params::traceFile.setf(ios::showbase);
 
@@ -206,6 +245,9 @@ int main(int argc, char *argv[]) {
         PIN_ExitProcess(1);
     }
 
+    // PIN_AddContextChangeFunction((CONTEXT_CHANGE_CALLBACK) SignalHandler, nullptr); // Equivalent to sigaction(2)
+    PIN_InterceptSignal(SIGUSR1, EnableInstrumentation, nullptr);
+    PIN_InterceptSignal(SIGUSR2, DisableInstrumentation, nullptr);
     IMG_AddInstrumentFunction(Image, 0);
     INS_AddInstrumentFunction(Instruction, 0);
     PIN_AddThreadStartFunction(ThreadStart, 0);
