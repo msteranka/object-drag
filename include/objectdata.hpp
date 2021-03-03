@@ -10,7 +10,6 @@ struct ObjectData {
     ObjectData(ADDRINT addr, UINT32 size, THREADID mallocThread, Backtrace mallocTrace) : 
         _addr(addr),
         _size(size),
-        _isLive(true),
         _mallocThread(mallocThread),
         _freeThread(-1) 
         { 
@@ -25,5 +24,10 @@ struct ObjectData {
     // std::string _accessPath;
     // INT32 _accessLine;
 };
+
+std::ostream &operator<<(std::ostream &os, ObjectData &d) {
+    os << "Object " << std::hex << d._addr << std::dec << ", Drag: " << d._freeTime - d._lastAccess << " clock ticks";
+    return os;
+}
 
 #endif

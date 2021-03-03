@@ -34,10 +34,11 @@ using namespace std;
 
 static ObjectManager manager;
 static TLS_KEY tls_key = INVALID_TLS_KEY; // Thread Local Storage
+static AFUNPTR clockFun;
 
 namespace DefaultParams {
     static const std::string defaultIsVerbose = "0",
-        defaultTraceFile = "dangling.out";
+        defaultTraceFile = "drag.out";
 }
 
 namespace Params {
@@ -76,16 +77,29 @@ VOID MallocAfter(THREADID threadId, ADDRINT retVal) {
 }
 
 VOID FreeBefore(THREADID threadId, CONTEXT *ctxt, ADDRINT ptr) {
-    MyTLS *tls = static_cast<MyTLS*>(PIN_GetThreadData(tls_key, threadId));
     Backtrace freeBacktrace;
+    clock_t t = 0;
+
     freeBacktrace.SetTrace(ctxt);
-    manager.DeleteObject(ptr, freeBacktrace, threadId);
+    // if (clockFun) {
+    //     PIN_CallApplicationFunction(ctxt, threadId, CALLINGSTD_DEFAULT, // Call clock()
+    //                                 clockFun, nullptr, 
+    //                                 PIN_PARG(clock_t), &t, 
+    //                                 PIN_PARG_END());
+    // }
+    manager.DeleteObject(ptr, freeBacktrace, threadId, t);
 }
 
 VOID MemAccess(THREADID threadId, ADDRINT addrAccessed, UINT32 accessSize, const CONTEXT *ctxt) {
-    MyTLS *tls = static_cast<MyTLS*>(PIN_GetThreadData(tls_key, threadId));
-    ObjectData *d = manager.IsUseAfterFree(addrAccessed, accessSize, threadId);
-    clock_t t = clock(); // TODO: Use PIN_CallApplicationFunction()?
+    clock_t t = 0;
+    // TODO: PIN_CallApplicationFunction has a high overhead -- Better solution?
+    // if (clockFun) {
+    // PIN_CallApplicationFunction(ctxt, threadId, CALLINGSTD_DEFAULT, // Call clock()
+    //                             clockFun, nullptr, 
+    //                             PIN_PARG(clock_t), &t, 
+    //                             PIN_PARG_END());
+    // }
+
     // TODO: Add some means of configuring whether you want the invocation
     // point of the last access?
     // std::string accessPath;
@@ -97,7 +111,7 @@ VOID MemAccess(THREADID threadId, ADDRINT addrAccessed, UINT32 accessSize, const
     // PIN_GetSourceLocation(ip, nullptr, &lineNumber, &fileName);
     // PIN_UnlockClient();
 
-    UpdateLastAccess(addrAccessed, t, threadId);
+    manager.UpdateLastAccess(addrAccessed, t, threadId);
 }
 
 VOID Instruction(INS ins, VOID *v) {
@@ -127,7 +141,7 @@ VOID Instruction(INS ins, VOID *v) {
 VOID Image(IMG img, VOID *v) {
     RTN rtn;
 
-    rtn = RTN_FindByName(img, Params::mallocName.c_str());
+    rtn = RTN_FindByName(img, MALLOC);
     if (RTN_Valid(rtn)) {
         RTN_Open(rtn);
         RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR) MallocBefore, // Hook calls to malloc with MallocBefore
@@ -140,11 +154,9 @@ VOID Image(IMG img, VOID *v) {
                         IARG_FUNCRET_EXITPOINT_VALUE, 
                         IARG_END);
         RTN_Close(rtn);
-    } else {
-        // std::cerr << "WARNING: Could not intercept " << Params::mallocName.c_str() << std::endl;
     }
 
-    rtn = RTN_FindByName(img, Params::freeName.c_str());
+    rtn = RTN_FindByName(img, FREE);
     if (RTN_Valid(rtn)) {
         RTN_Open(rtn);
         RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR) FreeBefore, // Hook calls to free with FreeBefore
@@ -154,13 +166,17 @@ VOID Image(IMG img, VOID *v) {
                         0, IARG_END);
         RTN_Close(rtn);
     }
+
+    rtn = RTN_FindByName(img, "clock");
+    if (RTN_Valid(rtn)) {
+        clockFun = RTN_Funptr(rtn);
+    } else {
+        clockFun = nullptr;
+    }
 }
 
 VOID Fini(INT32 code, VOID *v) {
-    // TODO: Output data - HERE!
-    for (auto it = AccessData::count.begin(); it != AccessData::count.end(); it++) {
-        Params::traceFile << it->second << " invalid accesses @ <" << it->first << ">" << std::endl;
-    }
+    Params::traceFile << manager;
 }
 
 INT32 Usage() {
@@ -184,7 +200,6 @@ int main(int argc, char *argv[]) {
     Params::traceFile.open(knobTraceFile.Value().c_str());
     Params::traceFile.setf(ios::showbase);
 
-    PIN_InitLock(&outputLock);
     tls_key = PIN_CreateThreadDataKey(NULL);
     if (tls_key == INVALID_TLS_KEY) {
         std::cerr << "number of already allocated keys reached the MAX_CLIENT_TLS_KEYS limit" << std::endl;

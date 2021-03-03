@@ -34,7 +34,7 @@ class ObjectManager {
             }
         }
 
-        VOID DeleteObject(ADDRINT ptr, Backtrace trace, THREADID threadId) {
+        VOID DeleteObject(ADDRINT ptr, Backtrace trace, THREADID threadId, clock_t time) {
             unordered_map<ADDRINT,ObjectData*>::iterator it;
             ObjectData *d;
 
@@ -54,7 +54,7 @@ class ObjectManager {
             d = it->second;
             d->_freeThread = threadId;
             d->_freeTrace = trace;
-            d->_freeTime = clock(); // TODO: Use PIN_CallApplicationFunction()?
+            d->_freeTime = time;
             PIN_GetLock(&_deadLock, threadId);
             _deadObjects.push_back(d);
             PIN_ReleaseLock(&_deadLock);
@@ -72,22 +72,35 @@ class ObjectManager {
             unordered_map<ADDRINT,ObjectData*>::iterator it;
             ObjectData *d;
 
-            PIN_GetLock(&_liveObjects, tid);
+            PIN_GetLock(&_liveLock, tid);
             it = _liveObjects.find(ptr);
             if (it == _liveObjects.end()) {
-                PIN_ReleaseLock(&_liveObjects);
+                PIN_ReleaseLock(&_liveLock);
                 return;
             }
-            PIN_ReleaseLock(&_liveObjects);
+            PIN_ReleaseLock(&_liveLock);
 
             d = it->second;
             d->_lastAccess = t;
         }
 
+        vector<ObjectData*> *GetDeadObjects() {
+            return &_deadObjects;
+        }
+
     private:
+        // TODO: output objects that were never freed?
         unordered_map<ADDRINT,ObjectData*> _liveObjects;
         vector<ObjectData*> _deadObjects;
         PIN_LOCK _liveLock, _deadLock;
 };
+
+std::ostream &operator<<(std::ostream &os, ObjectManager &m) {
+    vector<ObjectData*> *objs = m.GetDeadObjects();
+    for (auto it = objs->begin(); it != objs->end(); it++) {
+        os << **it << std::endl;
+    }
+    return os;
+}
 
 #endif
