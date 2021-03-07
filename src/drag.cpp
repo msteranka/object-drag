@@ -136,18 +136,7 @@ VOID MemAccess(THREADID threadId, ADDRINT addrAccessed, UINT32 accessSize, const
     //                             PIN_PARG_END());
     // }
 
-    // TODO: Add some means of configuring whether you want the invocation
-    // point of the last access?
-    // std::string accessPath;
-    // INT32 accessLine;
-    // ADDRINT ip;
-
-    // ip = PIN_GetContextReg(ctxt, REG_INST_PTR);
-    // PIN_LockClient();
-    // PIN_GetSourceLocation(ip, nullptr, &lineNumber, &fileName);
-    // PIN_UnlockClient();
-
-    manager.UpdateLastAccess(addrAccessed, t, threadId);
+    manager.UpdateLastAccess(addrAccessed, t, threadId, ctxt);
 }
 
 VOID Instruction(INS ins, VOID *v) {

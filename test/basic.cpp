@@ -12,6 +12,7 @@ void do_something() {
 int main() {
     char *ptr = (char *) malloc(20);
     ptr[0] = 'a';
+    ptr[1] = 'b';
     // do_something();
     free(ptr);
     return 0;
