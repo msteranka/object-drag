@@ -26,7 +26,9 @@ struct ObjectData {
 };
 
 std::ostream &operator<<(std::ostream &os, ObjectData &d) {
-    os << "Object " << std::hex << d._addr << std::dec << ", Drag: " << d._freeTime - d._lastAccess << " clock ticks";
+    os << "Object " << std::hex << d._addr << std::dec << ", Drag: " << d._freeTime - d._lastAccess << " clock ticks" << std::endl;
+    os << "\tmalloc(3) backtrace: " << std::endl << d._mallocTrace << std::endl;
+    os << "\tfree(3) backtrace: " << std::endl << d._freeTrace;
     return os;
 }
 

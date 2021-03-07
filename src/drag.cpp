@@ -48,16 +48,16 @@ namespace Params {
     static std::ofstream traceFile;
 };
 
-VOID SignalHandler(THREADID tid, CONTEXT_CHANGE_REASON reason, const CONTEXT *from, const CONTEXT *to, INT32 info, VOID *v) {
-    std::cout << "SignalHandler received signal " << info << std::endl;
-    if (reason == CONTEXT_CHANGE_REASON_SIGNAL) {
-        if (info == SIGUSR1) {
-            Params::enableInstrumentation = true;
-        } else if (info == SIGUSR2) {
-            Params::enableInstrumentation = false;
-        }
-    }
-}
+// VOID SignalHandler(THREADID tid, CONTEXT_CHANGE_REASON reason, const CONTEXT *from, const CONTEXT *to, INT32 info, VOID *v) {
+//     std::cout << "SignalHandler received signal " << info << std::endl;
+//     if (reason == CONTEXT_CHANGE_REASON_SIGNAL) {
+//         if (info == SIGUSR1) {
+//             Params::enableInstrumentation = true;
+//         } else if (info == SIGUSR2) {
+//             Params::enableInstrumentation = false;
+//         }
+//     }
+// }
 
 BOOL EnableInstrumentation(THREADID tid, INT32 sig, CONTEXT *ctxt, BOOL hasHandler, const EXCEPTION_INFO *pExceptInfo, VOID *v) {
     Params::enableInstrumentation = true;
@@ -66,7 +66,7 @@ BOOL EnableInstrumentation(THREADID tid, INT32 sig, CONTEXT *ctxt, BOOL hasHandl
 
 BOOL DisableInstrumentation(THREADID tid, INT32 sig, CONTEXT *ctxt, BOOL hasHandler, const EXCEPTION_INFO *pExceptInfo, VOID *v) {
     Params::enableInstrumentation = false;
-    return false; // Don't pass SIGUSR1 to application
+    return false; // Don't pass SIGUSR2 to application
 }
 
 VOID ThreadStart(THREADID threadId, CONTEXT *ctxt, INT32 flags, VOID* v) {
@@ -108,10 +108,11 @@ VOID FreeBefore(THREADID threadId, CONTEXT *ctxt, ADDRINT ptr) {
     }
 
     Backtrace freeBacktrace;
-    clock_t t = 0;
+    clock_t t;
 
     freeBacktrace.SetTrace(ctxt);
-    // TODO: Get this to work
+    t = clock();
+    // TODO: Call clock(3) within context of application
     // if (clockFun) {
     //     PIN_CallApplicationFunction(ctxt, threadId, CALLINGSTD_DEFAULT, // Call clock()
     //                                 clockFun, nullptr, 
@@ -126,7 +127,7 @@ VOID MemAccess(THREADID threadId, ADDRINT addrAccessed, UINT32 accessSize, const
         return;
     }
 
-    clock_t t = 0;
+    clock_t t = clock();
     // TODO: PIN_CallApplicationFunction has a high overhead -- Better solution?
     // if (clockFun) {
     // PIN_CallApplicationFunction(ctxt, threadId, CALLINGSTD_DEFAULT, // Call clock()

@@ -1,7 +1,12 @@
 #include <cstdlib>
 
 void do_something() {
-    for (int i = 0; i < 1000000; i++);
+    char buf[256];
+    for (int i = 0; i < 1000000; i++) {
+        for (int j = 0; j < 256; j++) {
+            buf[j] = (char) rand();
+        }
+    }
 }
 
 int main() {
