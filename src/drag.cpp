@@ -35,7 +35,6 @@ using namespace std;
 
 static ObjectManager manager;
 static TLS_KEY tls_key = INVALID_TLS_KEY; // Thread Local Storage
-static AFUNPTR clockFun;
 
 namespace DefaultParams {
     static const std::string defaultIsVerbose = "0",
@@ -47,17 +46,6 @@ namespace Params {
     static BOOL isVerbose, enableInstrumentation;
     static std::ofstream traceFile;
 };
-
-// VOID SignalHandler(THREADID tid, CONTEXT_CHANGE_REASON reason, const CONTEXT *from, const CONTEXT *to, INT32 info, VOID *v) {
-//     std::cout << "SignalHandler received signal " << info << std::endl;
-//     if (reason == CONTEXT_CHANGE_REASON_SIGNAL) {
-//         if (info == SIGUSR1) {
-//             Params::enableInstrumentation = true;
-//         } else if (info == SIGUSR2) {
-//             Params::enableInstrumentation = false;
-//         }
-//     }
-// }
 
 BOOL EnableInstrumentation(THREADID tid, INT32 sig, CONTEXT *ctxt, BOOL hasHandler, const EXCEPTION_INFO *pExceptInfo, VOID *v) {
     Params::enableInstrumentation = true;
@@ -97,7 +85,6 @@ VOID MallocAfter(THREADID threadId, ADDRINT retVal) {
     if (!Params::enableInstrumentation || (VOID *) retVal == nullptr) { 
         return; 
     }
-
     MyTLS *tls = static_cast<MyTLS*>(PIN_GetThreadData(tls_key, threadId));
     manager.InsertObject(retVal, tls->_cachedSize, tls->_cachedBacktrace, threadId);
 }
@@ -112,13 +99,6 @@ VOID FreeBefore(THREADID threadId, CONTEXT *ctxt, ADDRINT ptr) {
 
     freeBacktrace.SetTrace(ctxt);
     t = clock();
-    // TODO: Call clock(3) within context of application
-    // if (clockFun) {
-    //     PIN_CallApplicationFunction(ctxt, threadId, CALLINGSTD_DEFAULT, // Call clock()
-    //                                 clockFun, nullptr, 
-    //                                 PIN_PARG(clock_t), &t, 
-    //                                 PIN_PARG_END());
-    // }
     manager.DeleteObject(ptr, freeBacktrace, threadId, t);
 }
 
@@ -127,15 +107,10 @@ VOID MemAccess(THREADID threadId, ADDRINT addrAccessed, UINT32 accessSize, const
         return;
     }
 
+    // We cannot call clock(3) within the context of the application with
+    // PIN_CallApplicationFunction() because this results in a recursive
+    // call to MemAccess() 
     clock_t t = clock();
-    // TODO: PIN_CallApplicationFunction has a high overhead -- Better solution?
-    // if (clockFun) {
-    // PIN_CallApplicationFunction(ctxt, threadId, CALLINGSTD_DEFAULT, // Call clock()
-    //                             clockFun, nullptr, 
-    //                             PIN_PARG(clock_t), &t, 
-    //                             PIN_PARG_END());
-    // }
-
     manager.UpdateLastAccess(addrAccessed, t, threadId, ctxt);
 }
 
@@ -191,13 +166,6 @@ VOID Image(IMG img, VOID *v) {
                         0, IARG_END);
         RTN_Close(rtn);
     }
-
-    rtn = RTN_FindByName(img, "clock");
-    if (RTN_Valid(rtn)) {
-        clockFun = RTN_Funptr(rtn);
-    } else {
-        clockFun = nullptr;
-    }
 }
 
 VOID Fini(INT32 code, VOID *v) {
@@ -235,7 +203,6 @@ int main(int argc, char *argv[]) {
         PIN_ExitProcess(1);
     }
 
-    // PIN_AddContextChangeFunction((CONTEXT_CHANGE_CALLBACK) SignalHandler, nullptr); // Equivalent to sigaction(2)
     PIN_InterceptSignal(SIGUSR1, EnableInstrumentation, nullptr);
     PIN_InterceptSignal(SIGUSR2, DisableInstrumentation, nullptr);
     IMG_AddInstrumentFunction(Image, 0);
