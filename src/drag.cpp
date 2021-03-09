@@ -35,6 +35,7 @@ using namespace std;
 
 static ObjectManager manager;
 static TLS_KEY tls_key = INVALID_TLS_KEY; // Thread Local Storage
+static atomic_ulong allocTime;
 
 namespace DefaultParams {
     static const std::string defaultIsVerbose = "0",
@@ -80,12 +81,13 @@ VOID MallocBefore(THREADID threadId, CONTEXT *ctxt, ADDRINT size) {
 }
 
 VOID MallocAfter(THREADID threadId, ADDRINT retVal) {
+    MyTLS *tls = static_cast<MyTLS*>(PIN_GetThreadData(tls_key, threadId));
+    atomic_fetch_add(&allocTime, tls->_cachedSize);
     // Check for success since we don't want to track null pointers
     //
     if (!Params::enableInstrumentation || (VOID *) retVal == nullptr) { 
         return; 
     }
-    MyTLS *tls = static_cast<MyTLS*>(PIN_GetThreadData(tls_key, threadId));
     manager.InsertObject(retVal, tls->_cachedSize, tls->_cachedBacktrace, threadId);
 }
 
@@ -95,10 +97,10 @@ VOID FreeBefore(THREADID threadId, CONTEXT *ctxt, ADDRINT ptr) {
     }
 
     Backtrace freeBacktrace;
-    clock_t t;
+    unsigned long t;
 
     freeBacktrace.SetTrace(ctxt);
-    t = clock();
+    t = atomic_load(&allocTime);
     manager.DeleteObject(ptr, freeBacktrace, threadId, t);
 }
 
@@ -107,10 +109,7 @@ VOID MemAccess(THREADID threadId, ADDRINT addrAccessed, UINT32 accessSize, const
         return;
     }
 
-    // We cannot call clock(3) within the context of the application with
-    // PIN_CallApplicationFunction() because this results in a recursive
-    // call to MemAccess() 
-    clock_t t = clock();
+    unsigned long t = atomic_load(&allocTime);
     manager.UpdateLastAccess(addrAccessed, t, threadId, ctxt);
 }
 
@@ -197,6 +196,7 @@ int main(int argc, char *argv[]) {
     Params::traceFile.open(knobTraceFile.Value().c_str());
     Params::traceFile.setf(ios::showbase);
 
+    atomic_init(&allocTime, 0);
     tls_key = PIN_CreateThreadDataKey(NULL);
     if (tls_key == INVALID_TLS_KEY) {
         std::cerr << "number of already allocated keys reached the MAX_CLIENT_TLS_KEYS limit" << std::endl;

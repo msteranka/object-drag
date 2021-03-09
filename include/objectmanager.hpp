@@ -1,5 +1,5 @@
-#ifndef __OBJECT_MANAGER_HPP
-#define __OBJECT_MANAGER_HPP
+#if !defined( __OBJECT_MANAGER_HPP)
+# define __OBJECT_MANAGER_HPP
 
 #include "pin.H"
 #include "backtrace.hpp"
@@ -34,7 +34,7 @@ class ObjectManager {
             }
         }
 
-        VOID DeleteObject(ADDRINT ptr, Backtrace trace, THREADID threadId, clock_t time) {
+        VOID DeleteObject(ADDRINT ptr, Backtrace trace, THREADID threadId, unsigned long time) {
             unordered_map<ADDRINT,ObjectData*>::iterator it;
             ObjectData *d;
 

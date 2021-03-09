@@ -21,13 +21,13 @@ struct ObjectData {
     UINT32 _size;
     THREADID _mallocThread, _freeThread;
     Backtrace _mallocTrace, _freeTrace;
-    clock_t _lastAccess, _freeTime;
+    unsigned long _lastAccess, _freeTime;
     std::string _accessPath;
     INT32 _accessLine;
 };
 
 std::ostream &operator<<(std::ostream &os, ObjectData &d) {
-    os << "Object " << std::hex << d._addr << std::dec << ", Drag: " << d._freeTime - d._lastAccess << " clock ticks";
+    os << "Object " << std::hex << d._addr << std::dec << ", Drag: " << d._freeTime - d._lastAccess << " bytes";
     if (d._accessLine != 0) { // Valid path and line number
         os << ", Last accessed @ " << d._accessPath << ":" << d._accessLine << std::endl;
     } else {
