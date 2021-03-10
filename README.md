@@ -24,3 +24,10 @@ sent with
     $ kill -s <SIGUSR1/SIGUSR2> <PID>
 
 or raised within the application by manually calling raise(3).
+
+After running the Pintool, an output file drag.json will be generated. This file
+can be parsed with
+
+    $ python3 parser.py
+
+in the tools/ directory.

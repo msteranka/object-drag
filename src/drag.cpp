@@ -39,7 +39,7 @@ static atomic_ulong allocTime;
 
 namespace DefaultParams {
     static const std::string defaultIsVerbose = "0",
-        defaultTraceFile = "drag.out",
+        defaultTraceFile = "drag.json",
         defaultEnableInstrumentation = "0";
 }
 
@@ -168,7 +168,10 @@ VOID Image(IMG img, VOID *v) {
 }
 
 VOID Fini(INT32 code, VOID *v) {
-    Params::traceFile << manager;
+    Params::traceFile << "{";
+    Params::traceFile << "\"metadata\":{\"depth\":3},"; // TODO: hardcoded?
+    Params::traceFile << "\"objs\":" << manager;
+    Params::traceFile << "}";
 }
 
 INT32 Usage() {

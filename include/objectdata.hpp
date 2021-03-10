@@ -27,14 +27,26 @@ struct ObjectData {
 };
 
 std::ostream &operator<<(std::ostream &os, ObjectData &d) {
-    os << "Object " << std::hex << d._addr << std::dec << ", Drag: " << d._freeTime - d._lastAccess << " bytes";
-    if (d._accessLine != 0) { // Valid path and line number
-        os << ", Last accessed @ " << d._accessPath << ":" << d._accessLine << std::endl;
-    } else {
-        os << std::endl;
-    }
-    os << "\tmalloc(3) backtrace: " << std::endl << d._mallocTrace << std::endl;
-    os << "\tfree(3) backtrace: " << std::endl << d._freeTrace;
+    os << "{" <<
+        "\"addr\":" << d._addr << "," <<
+        "\"size\":" << d._size << "," <<
+        "\"mtid\":" << d._mallocThread << "," <<
+        "\"ftid\":" << d._freeThread << "," <<
+        "\"atime\":" << d._lastAccess << "," <<
+        "\"ftime\":" << d._freeTime << "," <<
+        "\"apath\":\"" << d._accessPath << "\"," <<
+        "\"aline\":" << d._accessLine << "," <<
+        "\"mtrace\":" << d._mallocTrace << "," <<
+        "\"ftrace\":" << d._freeTrace <<
+        "}";
+    // os << "Object " << std::hex << d._addr << std::dec << ", Drag: " << d._freeTime - d._lastAccess << " bytes";
+    // if (d._accessLine != 0) { // Valid path and line number
+    //     os << ", Last accessed @ " << d._accessPath << ":" << d._accessLine << std::endl;
+    // } else {
+    //     os << std::endl;
+    // }
+    // os << "\tmalloc(3) backtrace: " << std::endl << d._mallocTrace << std::endl;
+    // os << "\tfree(3) backtrace: " << std::endl << d._freeTrace;
     return os;
 }
 

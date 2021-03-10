@@ -19,8 +19,6 @@ struct Backtrace {
         for (INT32 i = 0; i < maxDepth; i++) {
             _fileNames[i] = "";
             _lineNumbers[i] = 0;
-            // trace[i].first = "";
-            // trace[i].second = 0;
         }
     }
 
@@ -53,8 +51,6 @@ struct Backtrace {
             PIN_GetSourceLocation((ADDRINT) buf[i], nullptr, 
                                     _lineNumbers + i - 1,
                                     _fileNames + i - 1);
-                                    // &(trace[i - 1].second),
-                                    // &(trace[i - 1].first));
         }
         PIN_UnlockClient();
     }
@@ -63,8 +59,6 @@ struct Backtrace {
         for (INT32 i = 0; i < maxDepth; i++) {
             _fileNames[i] = b._fileNames[i];
             _lineNumbers[i] = b._lineNumbers[i];
-            // trace[i].first = b.trace[i].first;
-            // trace[i].second = b.trace[i].second;
         }
         return *this;
     }
@@ -73,24 +67,19 @@ struct Backtrace {
     INT32 _lineNumbers[maxDepth];
 };
 
-ostream& operator<<(ostream& os, Backtrace& bt)
-{
-    int i;
-
-    for (i = 0; i < maxDepth - 1; i++) {
+ostream& operator<<(ostream& os, Backtrace& bt) {
+    os << "[";
+    for (int i = 0; i < maxDepth; i++) {
         if (bt._lineNumbers[i] == 0) {
-            os << "\t\t(NIL)" << std::endl;
+            os << "{\"path\":\"\",\"line\":0}";
         } else {
-            os << "\t\t" << bt._fileNames[i] << ":" << bt._lineNumbers[i] << std::endl;
+            os << "{\"path\":\"" << bt._fileNames[i] << "\",\"line\":" << bt._lineNumbers[i] << "}";
+        }
+        if (i < maxDepth - 1) {
+            os << ",";
         }
     }
-
-    if (bt._lineNumbers[i] == 0) {
-        os << "\t\t(NIL)";
-    } else {
-        os << "\t\t" << bt._fileNames[i] << ":" << bt._lineNumbers[i];
-    }
-
+    os << "]";
     return os;
 }
 

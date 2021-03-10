@@ -104,9 +104,18 @@ class ObjectManager {
 
 std::ostream &operator<<(std::ostream &os, ObjectManager &m) {
     vector<ObjectData*> *objs = m.GetDeadObjects();
-    for (auto it = objs->begin(); it != objs->end(); it++) {
-        os << **it << std::endl;
+    vector<ObjectData*>::iterator it;
+
+    os << "[";
+    if (objs->size() == 0) {
+        os << "]";
+        return os;
     }
+    for (it = objs->begin(); it != objs->end() - 1; it++) {
+        os << **it << ",";
+    }
+    os << **it << "]";
+
     return os;
 }
 
