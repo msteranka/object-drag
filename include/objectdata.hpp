@@ -3,27 +3,46 @@
 
 #include "pin.H"
 #include "backtrace.hpp"
+#include "objectfrag.hpp"
 #include <iostream>
-#include <ctime> // PinCRT doesn't support <chrono>
+#include <vector>
+#include <cstdint>
+#include <cassert>
+
+// TODO: allow this to be changed
+static const size_t fragSize = sizeof(uintptr_t);
 
 struct ObjectData {
-    ObjectData(ADDRINT addr, UINT32 size, THREADID mallocThread, Backtrace mallocTrace) : 
+    ObjectData(ADDRINT addr, UINT32 size, THREADID mallocThread, 
+               Backtrace mallocTrace) : 
         _addr(addr),
         _size(size),
         _mallocThread(mallocThread),
         _freeThread(-1),
-        _accessLine(0)
+        _mallocTrace(mallocTrace)
         { 
-            _mallocTrace = mallocTrace;
+            // _mallocTrace = mallocTrace;
+            for (UINT32 i = 0; i <= size; i += fragSize) {
+                _fragments.push_back(ObjectFragment(0, "", 0));
+            }
         }
+
+    // TODO: overlap into two fragments?
+    ObjectFragment *GetFragment(ADDRINT fragAddr) {
+        assert(fragAddr >= _addr && fragAddr < _addr + _size);
+        UINT32 i = (fragAddr - _addr) / fragSize;
+        // printf("Calculated i = %u, Max = %lu\n", i, _fragments.size());
+        // printf("fragAddr = %lu, _addr = %lu, fragSize = %lu, _size = %u\n", fragAddr, _addr, fragSize, _size);
+        assert(i >= 0 && i < _fragments.size());
+        return &_fragments[i];
+    }
 
     ADDRINT _addr;
     UINT32 _size;
     THREADID _mallocThread, _freeThread;
     Backtrace _mallocTrace, _freeTrace;
-    unsigned long _lastAccess, _freeTime;
-    std::string _accessPath;
-    INT32 _accessLine;
+    unsigned long _freeTime;
+    std::vector<ObjectFragment> _fragments;
 };
 
 std::ostream &operator<<(std::ostream &os, ObjectData &d) {
@@ -32,21 +51,16 @@ std::ostream &operator<<(std::ostream &os, ObjectData &d) {
         "\"size\":" << d._size << "," <<
         "\"mtid\":" << d._mallocThread << "," <<
         "\"ftid\":" << d._freeThread << "," <<
-        "\"atime\":" << d._lastAccess << "," <<
         "\"ftime\":" << d._freeTime << "," <<
-        "\"apath\":\"" << d._accessPath << "\"," <<
-        "\"aline\":" << d._accessLine << "," <<
         "\"mtrace\":" << d._mallocTrace << "," <<
-        "\"ftrace\":" << d._freeTrace <<
-        "}";
-    // os << "Object " << std::hex << d._addr << std::dec << ", Drag: " << d._freeTime - d._lastAccess << " bytes";
-    // if (d._accessLine != 0) { // Valid path and line number
-    //     os << ", Last accessed @ " << d._accessPath << ":" << d._accessLine << std::endl;
-    // } else {
-    //     os << std::endl;
-    // }
-    // os << "\tmalloc(3) backtrace: " << std::endl << d._mallocTrace << std::endl;
-    // os << "\tfree(3) backtrace: " << std::endl << d._freeTrace;
+        "\"ftrace\":" << d._freeTrace << "," <<
+        "\"frags\":[";
+
+    for (UINT32 i = 0; i < d._fragments.size() - 1; i++) {
+        os << d._fragments[i] << ",";
+    }
+
+    os << d._fragments.back() << "]}";
     return os;
 }
 

@@ -10,6 +10,14 @@ def print_backtrace(trace):
         else:
             print('\t\t(NIL)')
 
+def print_fragment(frag, ftime, start, end):
+    print('\t\t' + str(start) + '-' + str(end) + ' -- Drag: ' + str(ftime - f['atime']) + ', Last accessed: ' + str(f['atime']) + ', ', end = '')
+    # print('\t\t' + str(start) + '-' + str(end) + ' -- Last accessed: ' + str(f['atime']) + ', Drag: ' + str(ftime - f['atime']) + ', ', end = '')
+    if is_valid_path(f['apath']):
+        print('Accessed @ ' + str(f['apath']) + ':' + str(f['aline']))
+    else:
+        print('Accessed @ (NIL)')
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--input', type = str, help = 'The path to the output file')
 args = parser.parse_args()
@@ -21,17 +29,11 @@ with open(json_file, 'r') as f:
     data = json.load(f)
 
 metadata = data['metadata']
-print('Maximum backtrace depth: ' + str(metadata['depth']) + '\n')
+print('Maximum backtrace depth: ' + str(metadata['depth']))
+print('Fragment size: ' + str(metadata['fragsize']) + '\n')
 
 for x in data['objs']:
     print('Object ' + hex(x['addr']) + ':')
-    print('\tDrag: ' + str(x['ftime'] - x['atime']) + ' bytes')
-    print('\tFree time: ' + str(x['ftime']) + ' bytes')
-    print('\tLast access time: ' + str(x['atime']) + ' bytes')
-    if is_valid_path(x['apath']):
-        print('\tLast accessed @ ' + str(x['apath']) + ':' + str(x['aline']))
-    else:
-        print('\tLast accessed @ (NIL)')
     print('\tSize: ' + str(x['size']) + ' bytes')
     print('\tmalloc thread ID: ' + str(x['mtid']))
     print('\tfree thread ID: ' + str(x['ftid']))
@@ -39,3 +41,14 @@ for x in data['objs']:
     print_backtrace(x['mtrace'])
     print('\tfree Backtrace:')
     print_backtrace(x['ftrace'])
+    print('\tFree time: ' + str(x['ftime']) + ' bytes')
+    print('\tFragments:')
+    offset = 0
+    for f in x['frags']:
+        start = offset
+        if offset + 8 > x['size']:
+            end = x['size']
+        else:
+            end = offset + 8
+        print_fragment(f, x['ftime'], start, end)
+        offset += metadata['fragsize']

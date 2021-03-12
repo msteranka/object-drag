@@ -68,9 +68,10 @@ class ObjectManager {
             }
         }
 
-        VOID UpdateLastAccess(ADDRINT ptr, clock_t t, THREADID tid, const CONTEXT *ctxt) {
+        VOID UpdateLastAccess(ADDRINT ptr, unsigned long t, THREADID tid, const CONTEXT *ctxt) {
             unordered_map<ADDRINT,ObjectData*>::iterator it;
             ObjectData *d;
+            ObjectFragment *f;
             ADDRINT ip;
 
             PIN_GetLock(&_liveLock, tid);
@@ -82,12 +83,13 @@ class ObjectManager {
             PIN_ReleaseLock(&_liveLock);
 
             d = it->second;
-            d->_lastAccess = t;
+            f = d->GetFragment(ptr);
             // TODO: Add some means of configuring whether you want the invocation
             // point of the last access? - High overhead of calling PIN_GetSourceLocation
             ip = PIN_GetContextReg(ctxt, REG_INST_PTR);
             PIN_LockClient();
-            PIN_GetSourceLocation(ip, nullptr, &(d->_accessLine), &(d->_accessPath));
+            PIN_GetSourceLocation(ip, nullptr, &(f->_accessLine), &(f->_accessPath));
+            f->_lastAccess = t;
             PIN_UnlockClient();
         }
 

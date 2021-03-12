@@ -168,10 +168,15 @@ VOID Image(IMG img, VOID *v) {
 }
 
 VOID Fini(INT32 code, VOID *v) {
-    Params::traceFile << "{";
-    Params::traceFile << "\"metadata\":{\"depth\":3},"; // TODO: hardcoded?
-    Params::traceFile << "\"objs\":" << manager;
-    Params::traceFile << "}";
+    // TODO: Don't hardcode this stuff
+    Params::traceFile << "{" <<
+                         "\"metadata\":" <<
+                         "{" <<
+                         "\"depth\":3," <<
+                         "\"fragsize\":" << sizeof(uintptr_t) <<
+                         "}," <<
+                         "\"objs\":" << manager <<
+                         "}";
 }
 
 INT32 Usage() {
