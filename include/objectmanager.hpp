@@ -90,6 +90,7 @@ class ObjectManager {
             PIN_LockClient();
             PIN_GetSourceLocation(ip, nullptr, &(f->_accessLine), &(f->_accessPath));
             f->_lastAccess = t;
+            f->_wasAccessed = true;
             PIN_UnlockClient();
         }
 

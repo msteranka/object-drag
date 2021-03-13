@@ -22,8 +22,9 @@ struct ObjectData {
         _mallocTrace(mallocTrace)
         { 
             // _mallocTrace = mallocTrace;
-            for (UINT32 i = 0; i <= size; i += fragSize) {
-                _fragments.push_back(ObjectFragment(0, "", 0));
+            for (UINT32 i = 0; i < size; i += fragSize) {
+                _fragments.push_back(ObjectFragment());
+                // _fragments.push_back(ObjectFragment(0, "", 0));
             }
         }
 

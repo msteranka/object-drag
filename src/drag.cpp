@@ -59,7 +59,7 @@ BOOL DisableInstrumentation(THREADID tid, INT32 sig, CONTEXT *ctxt, BOOL hasHand
 }
 
 VOID ThreadStart(THREADID threadId, CONTEXT *ctxt, INT32 flags, VOID* v) {
-    MyTLS *tls = new MyTLS;
+    MyTLS *tls = new MyTLS(nullptr, 0);
     assert(PIN_SetThreadData(tls_key, tls, threadId));
 }
 

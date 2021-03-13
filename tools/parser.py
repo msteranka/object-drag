@@ -11,8 +11,11 @@ def print_backtrace(trace):
             print('\t\t(NIL)')
 
 def print_fragment(frag, ftime, start, end):
-    print('\t\t' + str(start) + '-' + str(end) + ' -- Drag: ' + str(ftime - f['atime']) + ', Last accessed: ' + str(f['atime']) + ', ', end = '')
-    # print('\t\t' + str(start) + '-' + str(end) + ' -- Last accessed: ' + str(f['atime']) + ', Drag: ' + str(ftime - f['atime']) + ', ', end = '')
+    print('\t\t' + str(start) + '-' + str(end) + ' -- ', end = '')
+    if f['astat'] == False:
+        print('Never accessed')
+        return
+    print('Drag: ' + str(ftime - f['atime']) + ', Last accessed: ' + str(f['atime']) + ', ', end = '')
     if is_valid_path(f['apath']):
         print('Accessed @ ' + str(f['apath']) + ':' + str(f['aline']))
     else:

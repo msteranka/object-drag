@@ -5,7 +5,9 @@
 #include "backtrace.hpp"
 
 struct MyTLS {
-    MyTLS() { }
+    MyTLS(void *cachedPtr, size_t cachedSize) : 
+          _cachedPtr(cachedPtr), 
+          _cachedSize(cachedSize) { }
 
     void *_cachedPtr;
     size_t _cachedSize;
