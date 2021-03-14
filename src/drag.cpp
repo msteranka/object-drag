@@ -170,12 +170,15 @@ VOID Image(IMG img, VOID *v) {
 }
 
 VOID Fini(INT32 code, VOID *v) {
+    unsigned long t = atomic_load(&allocTime);
+    manager.KillLiveObjects();
     // TODO: don't hardcode this stuff
     Params::traceFile << "{" <<
                          "\"metadata\":" <<
                          "{" <<
                          "\"depth\":3," <<
-                         "\"fragsize\":" << Params::fragSize <<
+                         "\"fragsize\":" << Params::fragSize << "," <<
+                         "\"finaltime\":" << t <<
                          "}," <<
                          "\"objs\":" << manager <<
                          "}";

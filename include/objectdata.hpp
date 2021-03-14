@@ -45,17 +45,20 @@ std::ostream &operator<<(std::ostream &os, ObjectData &d) {
         "\"addr\":" << d._addr << "," <<
         "\"size\":" << d._size << "," <<
         "\"mtid\":" << d._mallocThread << "," <<
-        "\"ftid\":" << d._freeThread << "," <<
-        "\"ftime\":" << d._freeTime << "," <<
         "\"mtrace\":" << d._mallocTrace << "," <<
-        "\"ftrace\":" << d._freeTrace << "," <<
-        "\"frags\":[";
+        "\"ftid\":" << (signed int) d._freeThread << ",";
 
+    if ((signed int) d._freeThread != -1) { // If this object was freed
+        os << "\"ftrace\":" << d._freeTrace << "," <<
+            "\"ftime\":" << d._freeTime << ",";
+    }
+
+    os << "\"frags\":[";
     for (UINT32 i = 0; i < d._fragments.size() - 1; i++) {
         os << d._fragments[i] << ",";
     }
-
     os << d._fragments.back() << "]}";
+
     return os;
 }
 

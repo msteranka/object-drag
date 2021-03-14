@@ -1,8 +1,6 @@
 #include <cstdlib>
 #include <csignal>
 
-// TODO: if object is never used? - Set last accessed to current time
-
 int main() {
     raise(SIGUSR1);
     char *buf = (char *) malloc(39);

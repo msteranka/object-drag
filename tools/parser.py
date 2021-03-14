@@ -33,18 +33,22 @@ with open(json_file, 'r') as f:
 
 metadata = data['metadata']
 print('Maximum backtrace depth: ' + str(metadata['depth']))
-print('Fragment size: ' + str(metadata['fragsize']) + '\n')
+print('Fragment size: ' + str(metadata['fragsize']))
+print('Final time: ' + str(metadata['finaltime']) + '\n')
 
 for x in data['objs']:
     print('Object ' + hex(x['addr']) + ':')
     print('\tSize: ' + str(x['size']) + ' bytes')
     print('\tmalloc thread ID: ' + str(x['mtid']))
-    print('\tfree thread ID: ' + str(x['ftid']))
     print('\tmalloc Backtrace:')
     print_backtrace(x['mtrace'])
-    print('\tfree Backtrace:')
-    print_backtrace(x['ftrace'])
-    print('\tFree time: ' + str(x['ftime']) + ' bytes')
+    if x['ftid'] == -1:
+        print('\tWas never freed')
+    else:
+        print('\tfree thread ID: ' + str(x['ftid']))
+        print('\tfree Backtrace:')
+        print_backtrace(x['ftrace'])
+        print('\tFree time: ' + str(x['ftime']) + ' bytes')
     print('\tFragments:')
     offset = 0
     for f in x['frags']:
@@ -53,5 +57,8 @@ for x in data['objs']:
             end = x['size']
         else:
             end = offset + metadata['fragsize']
-        print_fragment(f, x['ftime'], start, end)
+        if x['ftid'] == -1:
+            print_fragment(f, metadata['finaltime'], start, end)
+        else:
+            print_fragment(f, x['ftime'], start, end)
         offset += metadata['fragsize']
