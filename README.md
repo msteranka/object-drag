@@ -25,6 +25,11 @@ sent with
 
 or raised within the application by manually calling raise(3).
 
+By default, drag is measured on a per-fragment basis, where a fragment
+is a word by default. To configure the size of fragments, use the -f option:
+
+    $ </path/to/Pin> -t obj/drag.so -f <frag_size> -- </path/to/executable> <executable_args>
+
 After running the Pintool, an output file drag.json will be generated. This file
 can be parsed with
 

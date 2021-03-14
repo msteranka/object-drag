@@ -9,31 +9,25 @@
 #include <cstdint>
 #include <cassert>
 
-// TODO: allow this to be changed
-static const size_t fragSize = sizeof(uintptr_t);
-
 struct ObjectData {
     ObjectData(ADDRINT addr, UINT32 size, THREADID mallocThread, 
-               Backtrace mallocTrace) : 
+               Backtrace mallocTrace, size_t fragSize) : 
         _addr(addr),
         _size(size),
         _mallocThread(mallocThread),
         _freeThread(-1),
         _mallocTrace(mallocTrace)
         { 
-            // _mallocTrace = mallocTrace;
             for (UINT32 i = 0; i < size; i += fragSize) {
                 _fragments.push_back(ObjectFragment());
-                // _fragments.push_back(ObjectFragment(0, "", 0));
             }
         }
 
-    // TODO: overlap into two fragments?
-    ObjectFragment *GetFragment(ADDRINT fragAddr) {
+    // TODO: Accesses can overlap into multiple fragments. Is it worth it 
+    // to account for this?
+    ObjectFragment *GetFragment(ADDRINT fragAddr, size_t fragSize) {
         assert(fragAddr >= _addr && fragAddr < _addr + _size);
         UINT32 i = (fragAddr - _addr) / fragSize;
-        // printf("Calculated i = %u, Max = %lu\n", i, _fragments.size());
-        // printf("fragAddr = %lu, _addr = %lu, fragSize = %lu, _size = %u\n", fragAddr, _addr, fragSize, _size);
         assert(i >= 0 && i < _fragments.size());
         return &_fragments[i];
     }

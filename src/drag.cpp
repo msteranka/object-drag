@@ -41,10 +41,12 @@ namespace DefaultParams {
     static const std::string defaultIsVerbose = "0",
         defaultTraceFile = "drag.json",
         defaultEnableInstrumentation = "0";
+    static std::string defaultFragSize;
 }
 
 namespace Params {
     static BOOL isVerbose, enableInstrumentation;
+    static size_t fragSize;
     static std::ofstream traceFile;
 };
 
@@ -88,7 +90,7 @@ VOID MallocAfter(THREADID threadId, ADDRINT retVal) {
     if (!Params::enableInstrumentation || (VOID *) retVal == nullptr) { 
         return; 
     }
-    manager.InsertObject(retVal, tls->_cachedSize, tls->_cachedBacktrace, threadId);
+    manager.InsertObject(retVal, tls->_cachedSize, tls->_cachedBacktrace, threadId, Params::fragSize);
 }
 
 VOID FreeBefore(THREADID threadId, CONTEXT *ctxt, ADDRINT ptr) {
@@ -110,7 +112,7 @@ VOID MemAccess(THREADID threadId, ADDRINT addrAccessed, UINT32 accessSize, const
     }
 
     unsigned long t = atomic_load(&allocTime);
-    manager.UpdateLastAccess(addrAccessed, t, threadId, ctxt);
+    manager.UpdateLastAccess(addrAccessed, t, threadId, ctxt, Params::fragSize);
 }
 
 VOID Instruction(INS ins, VOID *v) {
@@ -168,12 +170,12 @@ VOID Image(IMG img, VOID *v) {
 }
 
 VOID Fini(INT32 code, VOID *v) {
-    // TODO: Don't hardcode this stuff
+    // TODO: don't hardcode this stuff
     Params::traceFile << "{" <<
                          "\"metadata\":" <<
                          "{" <<
                          "\"depth\":3," <<
-                         "\"fragsize\":" << sizeof(uintptr_t) <<
+                         "\"fragsize\":" << Params::fragSize <<
                          "}," <<
                          "\"objs\":" << manager <<
                          "}";
@@ -184,6 +186,10 @@ INT32 Usage() {
 }
 
 int main(int argc, char *argv[]) {
+    char fragBuf[20];
+    snprintf(fragBuf, 20, "%lu", sizeof(uintptr_t));
+    DefaultParams::defaultFragSize = std::string(fragBuf);
+
     KNOB<UINT32> knobIsVerbose(KNOB_MODE_WRITEONCE, "pintool", "v", 
                             DefaultParams::defaultIsVerbose,
                             "Dispay additional information including backtraces");
@@ -193,14 +199,21 @@ int main(int argc, char *argv[]) {
     KNOB<UINT32> knobEnableInstrumentation(KNOB_MODE_WRITEONCE, "pintool", "i",
                             DefaultParams::defaultEnableInstrumentation,
                             "Whether instrumentation should begin enabled");
+    KNOB<size_t> knobFragSize(KNOB_MODE_WRITEONCE, "pintool", "f",
+                            DefaultParams::defaultFragSize,
+                            "Size of fragments");
 
+    // PinCRT doesn't support C++11, so we cannot use std::to_string
+    //
     PIN_InitSymbols();
     if (PIN_Init(argc, argv))  {
         return Usage();
     }
 
+
     Params::isVerbose = knobIsVerbose.Value();
     Params::enableInstrumentation = knobEnableInstrumentation.Value();
+    Params::fragSize = knobFragSize.Value();
     Params::traceFile.open(knobTraceFile.Value().c_str());
     Params::traceFile.setf(ios::showbase);
 

@@ -18,11 +18,11 @@ class ObjectManager {
             PIN_InitLock(&_deadLock);
         }
 
-        VOID InsertObject(ADDRINT ptr, UINT32 size, Backtrace trace, THREADID threadId) {
+        VOID InsertObject(ADDRINT ptr, UINT32 size, Backtrace trace, THREADID threadId, size_t fragSize) {
             ObjectData *d;
             ADDRINT nextAddr;
 
-            d = new ObjectData(ptr, size, threadId, trace);
+            d = new ObjectData(ptr, size, threadId, trace, fragSize);
 
             // Create a mapping from every address in this object's range to the same ObjectData
             //
@@ -68,7 +68,7 @@ class ObjectManager {
             }
         }
 
-        VOID UpdateLastAccess(ADDRINT ptr, unsigned long t, THREADID tid, const CONTEXT *ctxt) {
+        VOID UpdateLastAccess(ADDRINT ptr, unsigned long t, THREADID tid, const CONTEXT *ctxt, size_t fragSize) {
             unordered_map<ADDRINT,ObjectData*>::iterator it;
             ObjectData *d;
             ObjectFragment *f;
@@ -83,7 +83,7 @@ class ObjectManager {
             PIN_ReleaseLock(&_liveLock);
 
             d = it->second;
-            f = d->GetFragment(ptr);
+            f = d->GetFragment(ptr, fragSize);
             // TODO: Add some means of configuring whether you want the invocation
             // point of the last access? - High overhead of calling PIN_GetSourceLocation
             ip = PIN_GetContextReg(ctxt, REG_INST_PTR);

@@ -49,9 +49,9 @@ for x in data['objs']:
     offset = 0
     for f in x['frags']:
         start = offset
-        if offset + 8 > x['size']:
+        if offset + metadata['fragsize'] > x['size']:
             end = x['size']
         else:
-            end = offset + 8
+            end = offset + metadata['fragsize']
         print_fragment(f, x['ftime'], start, end)
         offset += metadata['fragsize']
