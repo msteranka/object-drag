@@ -38,14 +38,13 @@ static TLS_KEY tls_key = INVALID_TLS_KEY; // Thread Local Storage
 static atomic_ulong allocTime;
 
 namespace DefaultParams {
-    static const std::string defaultIsVerbose = "0",
-        defaultTraceFile = "drag.json",
-        defaultEnableInstrumentation = "0";
-    static std::string defaultFragSize;
+    static std::string defaultTraceFile = "drag.json",
+                       defaultEnableInstrumentation = "0",
+                       defaultFragSize;
 }
 
 namespace Params {
-    static BOOL isVerbose, enableInstrumentation;
+    static BOOL enableInstrumentation;
     static size_t fragSize;
     static std::ofstream traceFile;
 };
@@ -172,7 +171,7 @@ VOID Image(IMG img, VOID *v) {
 VOID Fini(INT32 code, VOID *v) {
     unsigned long t = atomic_load(&allocTime);
     manager.KillLiveObjects();
-    // TODO: don't hardcode this stuff
+    // TODO: Don't hardcode backtrace depth
     Params::traceFile << "{" <<
                          "\"metadata\":" <<
                          "{" <<
@@ -193,9 +192,6 @@ int main(int argc, char *argv[]) {
     snprintf(fragBuf, 20, "%lu", sizeof(uintptr_t));
     DefaultParams::defaultFragSize = std::string(fragBuf);
 
-    KNOB<UINT32> knobIsVerbose(KNOB_MODE_WRITEONCE, "pintool", "v", 
-                            DefaultParams::defaultIsVerbose,
-                            "Dispay additional information including backtraces");
     KNOB<std::string> knobTraceFile(KNOB_MODE_WRITEONCE, "pintool", "o", 
                             DefaultParams::defaultTraceFile,
                             "Name of output file");
@@ -213,8 +209,6 @@ int main(int argc, char *argv[]) {
         return Usage();
     }
 
-
-    Params::isVerbose = knobIsVerbose.Value();
     Params::enableInstrumentation = knobEnableInstrumentation.Value();
     Params::fragSize = knobFragSize.Value();
     Params::traceFile.open(knobTraceFile.Value().c_str());
